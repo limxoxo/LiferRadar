@@ -338,11 +338,18 @@ function queryPoints(lat, lng, distKm) {
 
 async function multiGeoQuery(path, lat, lng, distKm, extraParams) {
   const points = queryPoints(lat, lng, distKm);
+  const MAX_CONCURRENT = 10;
 
-  const batches = await Promise.all(
-    points.map(p => ebirdGet(path, { lat: p.lat, lng: p.lng, dist: p.dist, ...extraParams })
-      .catch(() => []))  // Don't fail entire search if one tile errors
-  );
+  // Process in batches of MAX_CONCURRENT to avoid hammering eBird
+  const batches = [];
+  for (let i = 0; i < points.length; i += MAX_CONCURRENT) {
+    const chunk = points.slice(i, i + MAX_CONCURRENT);
+    const results = await Promise.all(
+      chunk.map(p => ebirdGet(path, { lat: p.lat, lng: p.lng, dist: p.dist, ...extraParams })
+        .catch(() => []))
+    );
+    batches.push(...results);
+  }
 
   // Flatten, deduplicate, filter to actual radius
   const seenKeys = new Set();
