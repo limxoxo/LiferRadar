@@ -293,3 +293,68 @@ a { color: var(--accent); }
 }
 .leaflet-popup-tip { background: var(--card); }
 .leaflet-popup-content { font-size: 0.85rem; }
+
+/* ── Mobile toggle button ────────────────────────────────────────────── */
+
+#mobileToggle {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 24px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+
+#mobileToggle:hover { background: var(--accent-hover); }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  #app {
+    flex-direction: column;
+    position: relative;
+  }
+
+  #map {
+    width: 100%;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+
+  #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-width: unset;
+    height: 100vh;
+    z-index: 500;
+    border-right: none;
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+  }
+
+  #sidebar.mobile-hidden {
+    transform: translateY(100%);
+  }
+
+  #mobileToggle {
+    display: block;
+  }
+
+  body {
+    overflow: auto;
+  }
+}

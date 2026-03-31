@@ -61,6 +61,22 @@ let hotspotMarkers = [];
 
 setTimeout(() => map.invalidateSize(), 200);
 
+// ── Mobile toggle ──────────────────────────────────────────────────────────
+
+const $mobileToggle = document.getElementById("mobileToggle");
+const $sidebar = document.getElementById("sidebar");
+
+$mobileToggle.addEventListener("click", () => {
+  const isHidden = $sidebar.classList.toggle("mobile-hidden");
+  $mobileToggle.textContent = isHidden ? "Show Settings" : "Show Map";
+  if (isHidden) setTimeout(() => map.invalidateSize(), 350);
+});
+
+// Start with sidebar hidden on mobile so map is visible
+if (window.innerWidth <= 768) {
+  $sidebar.classList.add("mobile-hidden");
+}
+
 function setLocation(lat, lng) {
   state.lat = lat;
   state.lng = lng;
