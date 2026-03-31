@@ -1,12 +1,11 @@
 // ── Configuration ────────────────────────────────────────────────────────────
 
-
 // If PROXY_BASE is empty, fall back to direct eBird API (works locally or if
 // the browser doesn't enforce CORS, e.g., extensions / local file).
 const EBIRD_BASE = "https://api.ebird.org/v2";
 
 function apiBase() {
-  return PROXY_BASE || EBIRD_BASE;
+  return EBIRD_BASE;
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
