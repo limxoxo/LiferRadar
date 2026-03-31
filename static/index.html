@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eBird Location Checker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+  <!-- ── SIDEBAR ──────────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <h1>eBird Location Checker</h1>
+    <p class="subtitle">Find new species near you</p>
+
+    <!-- API Key -->
+    <section class="panel">
+      <label for="apiKey">eBird API Key</label>
+      <input type="password" id="apiKey" placeholder="Paste your API key"
+             autocomplete="off" />
+      <small>Free from <a href="https://ebird.org/api/keygen" target="_blank">ebird.org/api/keygen</a>.
+        Your key is only used to query eBird and is <strong>never stored</strong> on any server.</small>
+    </section>
+
+    <!-- Life list upload -->
+    <section class="panel">
+      <label for="csvUpload">Your eBird Data (CSV) — one-time upload</label>
+      <input type="file" id="csvUpload" accept=".csv" />
+      <small>The eBird API doesn't expose personal lists, so we need your data export.
+        Download from <a href="https://ebird.org/downloadMyData" target="_blank">ebird.org/downloadMyData</a>.
+        Cached in your browser — you won't need to re-upload unless you want to refresh.</small>
+      <div id="csvStatus" class="status-badge hidden"></div>
+      <button id="clearCsvBtn" class="clear-btn hidden" type="button">Clear cached data</button>
+
+      <div class="row">
+        <div class="field">
+          <label for="listMode">Compare against</label>
+          <select id="listMode">
+            <option value="year">Year list (2026)</option>
+            <option value="life">Life list</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scope">Scope</label>
+          <select id="scope">
+            <option value="world">World</option>
+          </select>
+          <small>Populated from your CSV</small>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="locale">Bird name language</label>
+          <select id="locale">
+            <option value="en_AU">English (AU)</option>
+            <option value="en">English (US/Global)</option>
+            <option value="en_UK">English (UK)</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Fran&ccedil;ais</option>
+            <option value="es">Espa&ntilde;ol</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search parameters -->
+    <section class="panel">
+      <label for="locationSearch">Location</label>
+      <input type="text" id="locationSearch" placeholder="Search place name..." />
+      <small>Type a place name or coordinates (lat, lng)</small>
+
+      <div class="row">
+        <div class="field">
+          <label for="radius">Radius: <span id="radiusVal">25</span> km</label>
+          <input type="range" id="radius" min="1" max="200" value="25" />
+        </div>
+        <div class="field">
+          <label for="back">Last <span id="backVal">14</span> days</label>
+          <input type="range" id="back" min="1" max="30" value="14" />
+        </div>
+      </div>
+
+      <button id="searchBtn" class="primary-btn" disabled>Search</button>
+    </section>
+
+    <!-- Sort -->
+    <section class="panel" id="sortPanel" style="display:none">
+      <div class="row">
+        <div class="field">
+          <label for="sortBy">Sort locations by</label>
+          <select id="sortBy">
+            <option value="newSpecies">New species count</option>
+            <option value="distance">Distance</option>
+            <option value="rarity">Rarity score</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results summary -->
+    <div id="summary" class="summary hidden"></div>
+
+    <!-- Results list -->
+    <div id="results"></div>
+  </aside>
+
+  <!-- ── MAP ──────────────────────────────────────────────────────────── -->
+  <div id="map"></div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading" class="hidden">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Searching...</p>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
