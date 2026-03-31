@@ -1,8 +1,5 @@
 // ── Configuration ────────────────────────────────────────────────────────────
 
-// IMPORTANT: After deploying the Cloudflare Worker, replace this URL with yours.
-// For local development, set to "" to use the Python dev server as a fallback.
-const PROXY_BASE = "";  // e.g., "https://ebird-proxy.youraccount.workers.dev"
 
 // If PROXY_BASE is empty, fall back to direct eBird API (works locally or if
 // the browser doesn't enforce CORS, e.g., extensions / local file).
