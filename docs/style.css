@@ -294,6 +294,75 @@ a { color: var(--accent); }
 .leaflet-popup-tip { background: var(--card); }
 .leaflet-popup-content { font-size: 0.85rem; }
 
+/* ── API usage bar ──────────────────────────────────────────────────── */
+
+.api-usage {
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+
+.usage-text {
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.usage-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.usage-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* ── Location autocomplete ──────────────────────────────────────────── */
+
+.suggestions-dropdown {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover { background: var(--card); }
+
+/* ── eBird link in species list ─────────────────────────────────────── */
+
+.ebird-link {
+  padding: 6px 0 4px;
+  font-size: 0.8rem;
+}
+
+.ebird-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ebird-link a:hover {
+  text-decoration: underline;
+  color: var(--accent-hover);
+}
+
 /* ── Mobile toggle button ────────────────────────────────────────────── */
 
 #mobileToggle {

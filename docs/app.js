@@ -92,31 +92,59 @@ function updateRadiusCircle() {
   }).addTo(map);
 }
 
-// ── Location geocoding (Nominatim) ─────────────────────────────────────────
+// ── Location geocoding (Nominatim) with autocomplete ───────────────────────
 
 let searchTimeout = null;
+
+// Create autocomplete dropdown
+const $suggestions = document.createElement("div");
+$suggestions.className = "suggestions-dropdown";
+$locationSearch.parentNode.style.position = "relative";
+$locationSearch.parentNode.insertBefore($suggestions, $locationSearch.nextSibling);
+
+function hideSuggestions() { $suggestions.innerHTML = ""; $suggestions.style.display = "none"; }
+
 $locationSearch.addEventListener("input", () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(async () => {
     const q = $locationSearch.value.trim();
-    if (!q || q.length < 3) return;
+    if (!q || q.length < 2) { hideSuggestions(); return; }
     const coordMatch = q.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
       setLocation(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]));
+      hideSuggestions();
       return;
     }
     try {
       const resp = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
-        { headers: { "User-Agent": "eBirdLocationChecker/1.0" } }
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`,
+        { headers: { "User-Agent": "LiferRadar/1.0" } }
       );
       const data = await resp.json();
-      if (data.length > 0) {
-        setLocation(parseFloat(data[0].lat), parseFloat(data[0].lon));
-        $locationSearch.value = data[0].display_name.split(",").slice(0, 2).join(",");
+      if (data.length === 0) { hideSuggestions(); return; }
+
+      $suggestions.innerHTML = "";
+      $suggestions.style.display = "block";
+      for (const place of data) {
+        const item = document.createElement("div");
+        item.className = "suggestion-item";
+        item.textContent = place.display_name;
+        item.addEventListener("click", () => {
+          setLocation(parseFloat(place.lat), parseFloat(place.lon));
+          $locationSearch.value = place.display_name.split(",").slice(0, 2).join(",");
+          hideSuggestions();
+        });
+        $suggestions.appendChild(item);
       }
     } catch { /* ignore */ }
-  }, 600);
+  }, 400);
+});
+
+// Hide suggestions when clicking elsewhere
+document.addEventListener("click", (e) => {
+  if (!$locationSearch.contains(e.target) && !$suggestions.contains(e.target)) {
+    hideSuggestions();
+  }
 });
 
 // ── Sliders ─────────────────────────────────────────────────────────────────
@@ -293,7 +321,42 @@ function updateSearchBtn() {
 
 // ── eBird API helpers ───────────────────────────────────────────────────────
 
+let apiCallCount = 0;
+
+function getDailyUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  const stored = JSON.parse(localStorage.getItem("ebirdApiUsage") || "{}");
+  if (stored.date !== today) return { date: today, count: 0 };
+  return stored;
+}
+
+function incrementDailyUsage() {
+  const usage = getDailyUsage();
+  usage.count++;
+  localStorage.setItem("ebirdApiUsage", JSON.stringify(usage));
+  updateUsageDisplay();
+}
+
+function updateUsageDisplay() {
+  const $usage = document.getElementById("apiUsage");
+  if (!$usage) return;
+  const usage = getDailyUsage();
+  if (usage.count === 0) { $usage.classList.add("hidden"); return; }
+  const pct = Math.min(100, (usage.count / 10000) * 100);
+  const color = pct > 80 ? "var(--red)" : pct > 50 ? "var(--orange)" : "var(--green)";
+  $usage.innerHTML = `
+    <div class="usage-text">~${usage.count.toLocaleString()} / 10,000 API calls today</div>
+    <div class="usage-bar"><div class="usage-fill" style="width:${pct}%;background:${color}"></div></div>
+  `;
+  $usage.classList.remove("hidden");
+}
+
+// Show usage on load
+updateUsageDisplay();
+
 async function ebirdGet(path, params = {}) {
+  apiCallCount++;
+  incrementDailyUsage();
   const url = new URL(apiBase() + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== null && v !== undefined) url.searchParams.set(k, v);
@@ -415,9 +478,10 @@ async function runSearch() {
   const locale = $locale.value;
 
   showLoading("Fetching observations...");
+  apiCallCount = 0;
 
   try {
-    // Fetch hotspots, observations, notable, and taxonomy in parallel
+    // Phase 1: Geo queries for hotspots, observations, notable, and taxonomy
     const [hotspots, observations, notable, taxonomy] = await Promise.all([
       multiGeoQuery("/ref/hotspot/geo", lat, lng, dist, { back, fmt: "json" }),
       multiGeoQuery("/data/obs/geo/recent", lat, lng, dist, {
@@ -475,6 +539,44 @@ async function runSearch() {
       }
     }
 
+    // Phase 2: Re-query hotspots that have new species for complete data
+    const locsWithNew = [...locMap.values()].filter(l => l.newSpecies.length > 0);
+    if (locsWithNew.length > 0) {
+      setLoadingMsg(`Refining ${locsWithNew.length} hotspots with new species...`);
+      const MAX_CONCURRENT = 10;
+
+      for (let i = 0; i < locsWithNew.length; i += MAX_CONCURRENT) {
+        const chunk = locsWithNew.slice(i, i + MAX_CONCURRENT);
+        const perLocObs = await Promise.all(
+          chunk.map(loc =>
+            ebirdGet(`/data/obs/${loc.locId}/recent`, {
+              back, cat: "species", includeProvisional: true, locale,
+            }).catch(() => [])
+          )
+        );
+
+        // Merge per-hotspot results
+        for (let j = 0; j < chunk.length; j++) {
+          const loc = chunk[j];
+          const fullObs = perLocObs[j];
+          applyLocaleNames(fullObs, taxonomy);
+
+          for (const obs of fullObs) {
+            if (loc.species.find(s => s.sciName === obs.sciName)) continue;
+            const isNew = !state.mySpecies.has(obs.sciName);
+            const isNotable = state.notableSet.has(obs.sciName);
+            const entry = {
+              comName: obs.comName, sciName: obs.sciName,
+              speciesCode: obs.speciesCode, obsDt: obs.obsDt,
+              howMany: obs.howMany, isNew, isNotable,
+            };
+            loc.species.push(entry);
+            if (isNew) loc.newSpecies.push(entry);
+          }
+        }
+      }
+    }
+
     state.results = [...locMap.values()].filter(l => l.newSpecies.length > 0);
     state.results.forEach(loc => {
       loc.distance = haversine(lat, lng, loc.lat, loc.lng);
@@ -484,6 +586,7 @@ async function runSearch() {
     sortResults();
     renderResults();
     renderMap();
+    console.log(`[LiferRadar] Total API calls: ${apiCallCount}`);
 
   } catch (err) {
     alert(`Error: ${err.message}`);
@@ -511,7 +614,7 @@ function renderResults() {
 
   const totalNew = new Set(state.results.flatMap(l => l.newSpecies.map(s => s.sciName))).size;
   if (state.results.length > 0) {
-    $summary.textContent = `${totalNew} new species across ${state.results.length} locations`;
+    $summary.textContent = `${totalNew} new species across ${state.results.length} locations (${apiCallCount} API calls)`;
     $summary.classList.remove("hidden");
   } else {
     $summary.textContent = "No new species found in this area and timeframe.";
@@ -539,6 +642,9 @@ function renderResults() {
         </div>
       </div>
       <div class="species-list" id="species-${i}">
+        <div class="ebird-link">
+          <a href="https://ebird.org/hotspot/${loc.locId}" target="_blank">View on eBird &rarr;</a>
+        </div>
         ${loc.newSpecies
           .sort((a, b) => (b.isNotable ? 1 : 0) - (a.isNotable ? 1 : 0))
           .map(s => `
